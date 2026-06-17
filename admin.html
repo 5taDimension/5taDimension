@@ -549,11 +549,20 @@ input:focus,select:focus{border-color:var(--verde-c);box-shadow:0 0 0 3px rgba(0
 const APPS_SCRIPT = `// Pega este código en Extensions > Apps Script
 const SHEET_NAME = 'Fulbito';
 
+// Debe ser EXACTAMENTE el mismo texto que pusiste en la constante
+// APP_SECRET dentro del archivo HTML (index.html / admin.html).
+// Cualquier petición que no incluya esta clave será rechazada.
+const SHARED_SECRET = '5taDimension202305';
+
 function doPost(e) {
   const lock = LockService.getScriptLock();
   lock.waitLock(10000);
   try {
     const data = JSON.parse(e.postData.contents);
+    if (data.key !== SHARED_SECRET) {
+      return ContentService.createTextOutput(JSON.stringify({ok:false, error:'unauthorized'}))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     let sheet = ss.getSheetByName(SHEET_NAME);
     if (!sheet) {
@@ -574,6 +583,10 @@ function doPost(e) {
 }
 
 function doGet(e) {
+  if (!e.parameter || e.parameter.key !== SHARED_SECRET) {
+    return ContentService.createTextOutput(JSON.stringify({rows:[], error:'unauthorized'}))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(SHEET_NAME);
   if (!sheet) return ContentService.createTextOutput(JSON.stringify({rows:[]}))
@@ -591,6 +604,17 @@ function doGet(e) {
 // necesidad de configurar nada por su cuenta.
 // ══════════════════════════════════════════════════
 const DEFAULT_SHEET_URL = 'https://script.google.com/macros/s/AKfycbym3eTBHH4YafpZrbaJHYpnt-NdzU1vEAxL3YTP6WFDJx4ZIGaAs9DT62FArVgC1ux3LQ/exec';
+
+// ══════════════════════════════════════════════════
+// CLAVE SECRETA compartida con el Apps Script.
+// El Apps Script rechaza cualquier petición que no incluya
+// exactamente esta clave — así, aunque alguien copie esta
+// página o vea la URL de Sheets en el código fuente, no podrá
+// leer ni escribir datos sin también conocer este valor.
+// Cámbiala por una propia (cualquier texto largo) y pega el
+// MISMO valor en la constante SHARED_SECRET del Apps Script.
+// ══════════════════════════════════════════════════
+const APP_SECRET = '5taDimension202305';
 
 // ══════════════════════════════════════════════════
 // PIN de acceso al panel de administrador.
@@ -786,7 +810,7 @@ function saveURL() {
 async function fetchFromSheets() {
   setSyncStatus('a', 'loading', 'Sincronizando con Google Sheets…', '');
   try {
-    const res = await fetch(S.sheetUrl + '?t=' + Date.now());
+    const res = await fetch(S.sheetUrl + '?t=' + Date.now() + '&key=' + encodeURIComponent(APP_SECRET));
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
     parseSheetRows(data.rows || []);
@@ -861,7 +885,7 @@ async function postToSheets(payload) {
     const res = await fetch(S.sheetUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ ...payload, key: APP_SECRET }),
     });
     if (!res.ok) throw new Error('HTTP ' + res.status);
   } catch(e) {
