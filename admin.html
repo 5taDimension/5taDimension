@@ -360,6 +360,10 @@ input:focus,select:focus{border-color:var(--verde-c);box-shadow:0 0 0 3px rgba(0
         <div class="field"><label>Monto (S/)</label><input type="number" id="inp-monto" placeholder="0.00" min="0" step="0.50" inputmode="decimal"></div>
         <div class="field"><label>Fecha</label><input type="date" id="inp-fecha-aporte"></div>
       </div>
+      <div class="field">
+        <label>Comentario (opcional)</label>
+        <input type="text" id="inp-aporte-comentario" placeholder="Ej: Pago pendiente, adelanto…">
+      </div>
       <button class="btn btn-verde" onclick="addAporte()">➕ Registrar aporte</button>
     </div>
 
@@ -384,6 +388,21 @@ input:focus,select:focus{border-color:var(--verde-c);box-shadow:0 0 0 3px rgba(0
       <div class="card-title">📋 Aportes</div>
       <div id="tbl-aportes"><div class="empty"><span class="empty-ico">💸</span>Sin aportes aún.</div></div>
     </div>
+    <div class="card" style="border-left:4px solid var(--amarillo)">
+      <div class="card-title">🎽 ¿Quién se lleva el equipamiento?</div>
+      <div class="field">
+        <label>Jugador</label>
+        <div class="ac-wrap">
+          <input type="text" id="inp-equipo-nom" placeholder="Selecciona un jugador…" autocomplete="off">
+          <div class="ac-list" id="ac-equipo"></div>
+        </div>
+      </div>
+      <div class="field">
+        <label>Fecha</label>
+        <input type="date" id="inp-equipo-fecha">
+      </div>
+      <button class="btn btn-amarillo" onclick="addEquipamiento()">✅ Registrar</button>
+    </div>
   </section>
 
   <!-- ════ VIEW: GASTOS ════ -->
@@ -397,6 +416,10 @@ input:focus,select:focus{border-color:var(--verde-c);box-shadow:0 0 0 3px rgba(0
       <div class="row2">
         <div class="field"><label>Monto (S/)</label><input type="number" id="inp-gmonto" placeholder="0.00" min="0" step="0.50" inputmode="decimal"></div>
         <div class="field"><label>Fecha</label><input type="date" id="inp-fecha-gasto"></div>
+      </div>
+      <div class="field">
+        <label>Comentario (opcional)</label>
+        <input type="text" id="inp-gasto-comentario" placeholder="Ej: Pagado a medias, pendiente…">
       </div>
       <button class="btn btn-amarillo" onclick="addGasto()">➕ Registrar gasto</button>
     </div>
@@ -434,9 +457,14 @@ input:focus,select:focus{border-color:var(--verde-c);box-shadow:0 0 0 3px rgba(0
       <div class="card-title">👥 Aporte por jugador</div>
       <div id="r-jug"><div class="empty"><span class="empty-ico">👥</span>Sin datos.</div></div>
     </div>
+    </div>
     <div class="card">
       <div class="card-title">🧾 Detalle de gastos</div>
       <div id="r-gas"><div class="empty"><span class="empty-ico">🧾</span>Sin gastos.</div></div>
+    </div>
+    <div class="card" style="border-left:4px solid var(--amarillo)">
+      <div class="card-title">🎽 Último en llevarse el equipamiento</div>
+      <div id="r-equipo"><div class="empty"><span class="empty-ico">🎽</span>Sin registros.</div></div>
     </div>
   </section>
 
@@ -461,6 +489,10 @@ input:focus,select:focus{border-color:var(--verde-c);box-shadow:0 0 0 3px rgba(0
         <div class="field"><label>Fecha</label><input type="date" id="inp-fecha-gol"></div>
         <div class="field"><label>Goles</label><input type="number" id="inp-goles" placeholder="0" min="0" inputmode="numeric"></div>
       </div>
+      <div class="field">
+        <label>Comentario (opcional)</label>
+        <input type="text" id="inp-goles-comentario" placeholder="Ej: Hat-trick, golazo, etc…">
+      </div>
       <button class="btn btn-verde" onclick="addGoles()">➕ Guardar</button>
     </div>
 
@@ -477,6 +509,10 @@ input:focus,select:focus{border-color:var(--verde-c);box-shadow:0 0 0 3px rgba(0
         <div class="field"><label>Fecha</label><input type="date" id="inp-fecha-punto"></div>
         <div class="field"><label>Pts Jugador</label><input type="number" id="inp-pmvp" placeholder="0-10" min="0" max="10" inputmode="numeric"></div>
         <div class="field"><label>Pts Arquero</label><input type="number" id="inp-parq" placeholder="0-10" min="0" max="10" inputmode="numeric"></div>
+      </div>
+      <div class="field">
+        <label>Comentario (opcional)</label>
+        <input type="text" id="inp-punto-comentario" placeholder="Ej: Paró penales, jugó brillante…">
       </div>
       <button class="btn btn-amarillo" onclick="addPuntos()">➕ Guardar puntuación</button>
     </div>
@@ -635,10 +671,11 @@ const S = {
   jugadoresTodos: [],
   jugadorRosterIds: new Map(),
   jugadorOcultoIds: new Map(),
-  aportes:   [],
-  gastos:    [],
-  goles:     [],
-  puntos:    [],
+  aportes:      [],
+  gastos:       [],
+  goles:        [],
+  puntos:       [],
+  equipamiento: [],   // {id, nombre, fecha, ts}
   sheetUrl:  '',
   loaded:    false,
 };
@@ -732,19 +769,22 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Autocomplete wiring
-  wireAC('inp-nombre','ac-a');
-  wireAC('inp-gnom',  'ac-g');
-  wireAC('inp-pnom',  'ac-p');
+  wireAC('inp-nombre',   'ac-a');
+  wireAC('inp-gnom',     'ac-g');
+  wireAC('inp-pnom',     'ac-p');
+  wireAC('inp-equipo-nom','ac-equipo');
 
   // Fecha por defecto: hoy
   const fAporte = document.getElementById('inp-fecha-aporte');
   const fGasto  = document.getElementById('inp-fecha-gasto');
   const fGol    = document.getElementById('inp-fecha-gol');
   const fPunto  = document.getElementById('inp-fecha-punto');
+  const fEquipo = document.getElementById('inp-equipo-fecha');
   if (fAporte) fAporte.value = todayISO();
   if (fGasto)  fGasto.value  = todayISO();
   if (fGol)    fGol.value    = todayISO();
   if (fPunto)  fPunto.value  = todayISO();
+  if (fEquipo) fEquipo.value = todayISO();
 
   // Close AC on outside click
   document.addEventListener('click', e => {
@@ -769,22 +809,24 @@ function loadLocal() {
     const raw = localStorage.getItem('fm_data');
     if (raw) {
       const d = JSON.parse(raw);
-      S.jugadores = d.jugadores || [];
-      S.aportes   = d.aportes   || [];
-      S.gastos    = d.gastos    || [];
-      S.goles     = d.goles     || [];
-      S.puntos    = d.puntos    || [];
+      S.jugadores    = d.jugadores    || [];
+      S.aportes      = d.aportes      || [];
+      S.gastos       = d.gastos       || [];
+      S.goles        = d.goles        || [];
+      S.puntos       = d.puntos       || [];
+      S.equipamiento = d.equipamiento || [];
     }
   } catch(e) { console.warn('Local load error:', e); }
 }
 function saveLocal() {
   try {
     localStorage.setItem('fm_data', JSON.stringify({
-      jugadores: S.jugadores,
-      aportes:   S.aportes,
-      gastos:    S.gastos,
-      goles:     S.goles,
-      puntos:    S.puntos,
+      jugadores:    S.jugadores,
+      aportes:      S.aportes,
+      gastos:       S.gastos,
+      goles:        S.goles,
+      puntos:       S.puntos,
+      equipamiento: S.equipamiento,
     }));
   } catch(e) { console.warn('Local save error:', e); }
 }
@@ -838,29 +880,32 @@ function startAutoSync(intervalMs = 20000) {
 }
 
 function parseSheetRows(rows) {
-  S.aportes = []; S.gastos = []; S.goles = []; S.puntos = [];
+  S.aportes = []; S.gastos = []; S.goles = []; S.puntos = []; S.equipamiento = [];
   const jugs = new Set();        // nombres visibles (derivados + roster)
   const ocultos = new Map();     // nombre -> id (tipo='jugador_oculto')
   const roster  = new Map();     // nombre -> id (tipo='jugador')
   rows.forEach(r => {
-    const [tipo, id, c1, c2, c3, c4, fechaServer] = r;
+    const [tipo, id, c1, c2, c3, c4, fechaServer, c5] = r;
     // c4 = fecha elegida por el usuario. Google Sheets puede devolverla
     // como "2026-06-14" o como ISO completo ("2026-06-14T05:00:00.000Z")
     // dependiendo de si la celda quedó como texto o como fecha real.
     // normalizeFecha() deja siempre YYYY-MM-DD puro. Si no existe
     // (registros antiguos), usamos la fecha del servidor como respaldo.
     const fecha = normalizeFecha(c4) || normalizeFecha(fechaServer);
+    const comentario = c5 || '';
     if (tipo === 'aporte') {
-      S.aportes.push({ id, nombre: c1, monto: parseFloat(c2)||0, ts: c3, fecha });
+      S.aportes.push({ id, nombre: c1, monto: parseFloat(c2)||0, ts: c3, fecha, comentario });
       if (c1) jugs.add(c1);
     } else if (tipo === 'gasto') {
-      S.gastos.push({ id, desc: c1, monto: parseFloat(c2)||0, ts: c3, fecha });
+      S.gastos.push({ id, desc: c1, monto: parseFloat(c2)||0, ts: c3, fecha, comentario });
     } else if (tipo === 'gol') {
-      S.goles.push({ id, nombre: c1, goles: parseInt(c2)||0, fecha });
+      S.goles.push({ id, nombre: c1, goles: parseInt(c2)||0, fecha, comentario: c3||'' });
       if (c1) jugs.add(c1);
     } else if (tipo === 'punto') {
-      S.puntos.push({ id, nombre: c1, ptsJugador: parseFloat(c2)||0, ptsArquero: parseFloat(c3)||0, fecha });
+      S.puntos.push({ id, nombre: c1, ptsJugador: parseFloat(c2)||0, ptsArquero: parseFloat(c3)||0, fecha, comentario });
       if (c1) jugs.add(c1);
+    } else if (tipo === 'equipo') {
+      S.equipamiento.push({ id, nombre: c1, fecha, ts: c3 });
     } else if (tipo === 'jugador') {
       if (c1) { jugs.add(c1); roster.set(c1, id); }
     } else if (tipo === 'jugador_oculto') {
@@ -997,24 +1042,27 @@ async function addAporte() {
   const inp    = document.getElementById('inp-nombre');
   const inpM   = document.getElementById('inp-monto');
   const inpF   = document.getElementById('inp-fecha-aporte');
-  const nombre = inp ? inp.value.trim() : '';
-  const monto  = parseFloat(inpM ? inpM.value : '');
-  const fecha  = (inpF && inpF.value) ? inpF.value : todayISO();
+  const inpC   = document.getElementById('inp-aporte-comentario');
+  const nombre    = inp ? inp.value.trim() : '';
+  const monto     = parseFloat(inpM ? inpM.value : '');
+  const fecha     = (inpF && inpF.value) ? inpF.value : todayISO();
+  const comentario = inpC ? inpC.value.trim() : '';
   if (!nombre) { toast('Ingresa el nombre del jugador', 'er'); return; }
   if (!monto || monto <= 0) { toast('Ingresa un monto válido', 'er'); return; }
 
   const ts = new Date().toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'});
   const id = Date.now().toString();
   await ensureJugador(nombre);
-  S.aportes.push({ id, nombre, monto, ts, fecha });
+  S.aportes.push({ id, nombre, monto, ts, fecha, comentario });
   saveLocal();
   if (inp) inp.value = '';
   if (inpM) inpM.value = '';
   if (inpF) inpF.value = todayISO();
+  if (inpC) inpC.value = '';
   renderAportes();
   renderResumen();
   toast('Aporte registrado ✓', 'ok');
-  await postToSheets({ action:'add', tipo:'aporte', id, c1:nombre, c2:monto, c3:ts, c4:fecha });
+  await postToSheets({ action:'add', tipo:'aporte', id, c1:nombre, c2:monto, c3:ts, c4:fecha, c5:comentario });
 }
 
 function deleteAporteConfirm(id) {
@@ -1051,12 +1099,12 @@ function renderAportes() {
   }
   const total = lista.reduce((s,a) => s + a.monto, 0);
   wrap.innerHTML = `<div class="tbl-wrap"><table class="tbl">
-    <thead><tr><th>Fecha</th><th>Jugador</th><th>Monto</th><th>Hora</th><th></th></tr></thead>
+    <thead><tr><th>Fecha</th><th>Jugador</th><th>Monto</th><th>Comentario</th><th></th></tr></thead>
     <tbody>${lista.map(a => `<tr>
       <td class="c-muted col-fecha">${formatFecha(a.fecha)}</td>
       <td><strong>${esc(a.nombre)}</strong></td>
       <td class="mono c-ok">S/ ${a.monto.toFixed(2)}</td>
-      <td class="c-muted">${esc(a.ts)}</td>
+      <td class="c-muted" style="font-size:.75rem">${esc(a.comentario||'—')}</td>
       <td><button class="btn btn-rojo" onclick="deleteAporteConfirm('${a.id}')">✕</button></td>
     </tr>`).join('')}</tbody>
     <tfoot><tr>
@@ -1073,23 +1121,26 @@ async function addGasto() {
   const inpD  = document.getElementById('inp-gdesc');
   const inpM  = document.getElementById('inp-gmonto');
   const inpF  = document.getElementById('inp-fecha-gasto');
-  const desc  = inpD ? inpD.value.trim() : '';
-  const monto = parseFloat(inpM ? inpM.value : '');
-  const fecha = (inpF && inpF.value) ? inpF.value : todayISO();
+  const inpC  = document.getElementById('inp-gasto-comentario');
+  const desc      = inpD ? inpD.value.trim() : '';
+  const monto     = parseFloat(inpM ? inpM.value : '');
+  const fecha     = (inpF && inpF.value) ? inpF.value : todayISO();
+  const comentario = inpC ? inpC.value.trim() : '';
   if (!desc)  { toast('Ingresa la descripción', 'er'); return; }
   if (!monto || monto <= 0) { toast('Ingresa un monto válido', 'er'); return; }
 
   const ts = new Date().toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'});
   const id = Date.now().toString();
-  S.gastos.push({ id, desc, monto, ts, fecha });
+  S.gastos.push({ id, desc, monto, ts, fecha, comentario });
   saveLocal();
   if (inpD) inpD.value = '';
   if (inpM) inpM.value = '';
   if (inpF) inpF.value = todayISO();
+  if (inpC) inpC.value = '';
   renderGastos();
   renderResumen();
   toast('Gasto registrado ✓', 'ok');
-  await postToSheets({ action:'add', tipo:'gasto', id, c1:desc, c2:monto, c3:ts, c4:fecha });
+  await postToSheets({ action:'add', tipo:'gasto', id, c1:desc, c2:monto, c3:ts, c4:fecha, c5:comentario });
 }
 
 function deleteGastoConfirm(id) {
@@ -1125,12 +1176,12 @@ function renderGastos() {
   }
   const total = lista.reduce((s,g) => s + g.monto, 0);
   wrap.innerHTML = `<div class="tbl-wrap"><table class="tbl">
-    <thead><tr><th>Fecha</th><th>Descripción</th><th>Monto</th><th>Hora</th><th></th></tr></thead>
+    <thead><tr><th>Fecha</th><th>Descripción</th><th>Monto</th><th>Comentario</th><th></th></tr></thead>
     <tbody>${lista.map(g => `<tr>
       <td class="c-muted col-fecha">${formatFecha(g.fecha)}</td>
       <td><strong>${esc(g.desc)}</strong></td>
       <td class="mono c-err">S/ ${g.monto.toFixed(2)}</td>
-      <td class="c-muted">${esc(g.ts)}</td>
+      <td class="c-muted" style="font-size:.75rem">${esc(g.comentario||'—')}</td>
       <td><button class="btn btn-rojo" onclick="deleteGastoConfirm('${g.id}')">✕</button></td>
     </tr>`).join('')}</tbody>
     <tfoot><tr>
@@ -1154,6 +1205,50 @@ function limpiarFiltro(tipo) {
     if (f) f.value = '';
     renderGastos();
   }
+}
+
+// ══════════════════════════════════════════════════
+// ══════════════════════════════════════════════════
+// EQUIPAMIENTO (chalecos / pelotas)
+// ══════════════════════════════════════════════════
+async function addEquipamiento() {
+  const inpN = document.getElementById('inp-equipo-nom');
+  const inpF = document.getElementById('inp-equipo-fecha');
+  const nombre = inpN ? inpN.value.trim() : '';
+  const fecha  = (inpF && inpF.value) ? inpF.value : todayISO();
+  if (!nombre) { toast('Selecciona un jugador', 'er'); return; }
+  if (!S.jugadores.includes(nombre) && !S.jugadoresTodos.includes(nombre)) {
+    toast('Ese nombre no está en la lista de jugadores', 'er'); return;
+  }
+  const ts = new Date().toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'});
+  const id  = Date.now().toString();
+  S.equipamiento.push({ id, nombre, fecha, ts });
+  saveLocal();
+  if (inpN) inpN.value = '';
+  if (inpF) inpF.value = todayISO();
+  renderResumen();
+  toast('Equipamiento registrado ✓', 'ok');
+  await postToSheets({ action:'add', tipo:'equipo', id, c1:nombre, c3:ts, c4:fecha });
+}
+
+function renderEquipamiento() {
+  const wrap = document.getElementById('r-equipo');
+  if (!wrap) return;
+  if (!S.equipamiento.length) {
+    wrap.innerHTML = '<div class="empty"><span class="empty-ico">🎽</span>Sin registros.</div>';
+    return;
+  }
+  const ultimo = sortByFechaDesc(S.equipamiento)[0];
+  wrap.innerHTML = `
+    <div style="display:flex;align-items:center;gap:1rem;padding:.4rem 0">
+      <div style="font-size:2.5rem;line-height:1">🎽</div>
+      <div>
+        <div style="font-family:'Oswald',sans-serif;font-size:1.3rem;font-weight:700;color:var(--verde)">${esc(ultimo.nombre)}</div>
+        <div style="font-size:.78rem;color:var(--gris-m);margin-top:.15rem">
+          📅 ${formatFecha(ultimo.fecha)}
+        </div>
+      </div>
+    </div>`;
 }
 
 // ══════════════════════════════════════════════════
@@ -1200,6 +1295,9 @@ function renderResumen() {
         </tr>`).join('')}</tbody>
       </table></div>`
     : '<div class="empty"><span class="empty-ico">🧾</span>Sin gastos.</div>';
+
+  // Cuadro del último responsable de equipamiento
+  renderEquipamiento();
 }
 
 // ══════════════════════════════════════════════════
@@ -1209,22 +1307,25 @@ async function addGoles() {
   const inpN = document.getElementById('inp-gnom');
   const inpG = document.getElementById('inp-goles');
   const inpF = document.getElementById('inp-fecha-gol');
-  const nombre = inpN ? inpN.value.trim() : '';
-  const goles  = parseInt(inpG ? inpG.value : '');
-  const fecha  = (inpF && inpF.value) ? inpF.value : todayISO();
+  const inpC = document.getElementById('inp-goles-comentario');
+  const nombre    = inpN ? inpN.value.trim() : '';
+  const goles     = parseInt(inpG ? inpG.value : '');
+  const fecha     = (inpF && inpF.value) ? inpF.value : todayISO();
+  const comentario = inpC ? inpC.value.trim() : '';
   if (!nombre) { toast('Ingresa el nombre', 'er'); return; }
   if (isNaN(goles) || goles < 0) { toast('Ingresa los goles', 'er'); return; }
 
   await ensureJugador(nombre);
   const id = Date.now().toString();
-  S.goles.push({ id, nombre, goles, fecha });
+  S.goles.push({ id, nombre, goles, fecha, comentario });
   saveLocal();
   if (inpN) inpN.value = '';
   if (inpG) inpG.value = '';
   if (inpF) inpF.value = todayISO();
+  if (inpC) inpC.value = '';
   renderStats();
   toast('Goles guardados ✓', 'ok');
-  await postToSheets({ action:'add', tipo:'gol', id, c1:nombre, c2:goles, c4:fecha });
+  await postToSheets({ action:'add', tipo:'gol', id, c1:nombre, c2:goles, c3:comentario, c4:fecha });
 }
 
 // ══════════════════════════════════════════════════
@@ -1235,24 +1336,27 @@ async function addPuntos() {
   const inpJ = document.getElementById('inp-pmvp');
   const inpA = document.getElementById('inp-parq');
   const inpF = document.getElementById('inp-fecha-punto');
-  const nombre     = inpN ? inpN.value.trim() : '';
-  const ptsJugador = parseFloat(inpJ ? inpJ.value : '') || 0;
-  const ptsArquero = parseFloat(inpA ? inpA.value : '') || 0;
-  const fecha      = (inpF && inpF.value) ? inpF.value : todayISO();
+  const inpC = document.getElementById('inp-punto-comentario');
+  const nombre      = inpN ? inpN.value.trim() : '';
+  const ptsJugador  = parseFloat(inpJ ? inpJ.value : '') || 0;
+  const ptsArquero  = parseFloat(inpA ? inpA.value : '') || 0;
+  const fecha       = (inpF && inpF.value) ? inpF.value : todayISO();
+  const comentario  = inpC ? inpC.value.trim() : '';
   if (!nombre) { toast('Ingresa el nombre', 'er'); return; }
   if (ptsJugador === 0 && ptsArquero === 0) { toast('Ingresa al menos un puntaje', 'er'); return; }
 
   await ensureJugador(nombre);
   const id = Date.now().toString();
-  S.puntos.push({ id, nombre, ptsJugador, ptsArquero, fecha });
+  S.puntos.push({ id, nombre, ptsJugador, ptsArquero, fecha, comentario });
   saveLocal();
   if (inpN) inpN.value = '';
   if (inpJ) inpJ.value = '';
   if (inpA) inpA.value = '';
   if (inpF) inpF.value = todayISO();
+  if (inpC) inpC.value = '';
   renderStats();
   toast('Puntuación guardada ✓', 'ok');
-  await postToSheets({ action:'add', tipo:'punto', id, c1:nombre, c2:ptsJugador, c3:ptsArquero, c4:fecha });
+  await postToSheets({ action:'add', tipo:'punto', id, c1:nombre, c2:ptsJugador, c3:ptsArquero, c4:fecha, c5:comentario });
 }
 
 // ══════════════════════════════════════════════════
