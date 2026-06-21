@@ -110,6 +110,20 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--bg);color:
 }
 .btn-refresh:active{transform:rotate(180deg)}
 
+/* ── TOOLTIP COMENTARIO ── */
+.tip-wrap{position:relative;display:inline-flex;align-items:center}
+.tip-ico{font-size:.9rem;cursor:pointer;opacity:.75;background:none;border:none;padding:0;line-height:1}
+.tip-ico:hover{opacity:1}
+.tip-box{
+  display:none;position:absolute;bottom:calc(100% + 6px);left:50%;
+  transform:translateX(-50%);
+  background:var(--gris-d);color:white;
+  font-size:.72rem;line-height:1.4;padding:.45rem .7rem;border-radius:7px;
+  white-space:normal;max-width:200px;
+  box-shadow:0 4px 16px rgba(0,0,0,.25);z-index:300;pointer-events:none;
+}
+.tip-wrap:hover .tip-box,.tip-wrap.open .tip-box{display:block}
+
 /* ── CARD ── */
 .card{background:white;border-radius:var(--rad);padding:1.1rem;margin-bottom:.9rem;box-shadow:var(--shadow)}
 .card-title{font-family:'Oswald',sans-serif;font-size:.9rem;font-weight:600;
